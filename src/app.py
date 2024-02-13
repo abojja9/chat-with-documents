@@ -10,7 +10,7 @@ project_dir = Path(__file__).resolve().parents[1]
 project_dir = os.path.abspath(project_dir)
 # add the project directory to sys.path
 sys.path.append(project_dir)
-from backend.app import LLM_COMPANY, get_context_retriever_chain, get_conversational_rag_chain, get_response, get_vectorstore_from_url, user_input
+from backend.app import LLM_COMPANY, get_context_retriever_chain, get_conversational_rag_chain, get_response, get_vectorstore_from_pdf, get_vectorstore_from_url, user_input
 
 
 # app config
@@ -21,20 +21,34 @@ st.title("Chat with documents")
 # sidebar
 with st.sidebar:
     st.header("Settings")
-    website_url = st.text_input("Website URL")
+    input_type = st.selectbox("Select input type", ["Website URL", "PDF"], key="input_type")
+    if input_type == "Website URL":
+        website_url = st.text_input("Website URL")
+        pdf_docs = None
+    else:
+        website_url = None
+        pdf_docs = st.file_uploader(
+            "Upload your PDFs here and click on 'Process'", accept_multiple_files=True)
 
-if website_url is None or website_url == "":
-    st.info("Please enter a website URL")
+if (website_url is None or website_url == "") and (pdf_docs is None or len(pdf_docs) == 0):
+    st.info("Please enter a website URL or upload a PDF file.")
 else:
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = [
-            AIMessage(content="Hello, I'm your legal assistant. How can I help you?")
+            AIMessage(content="Hello, I'm your document assistant. How can I help you?")
         ]
     if "vector_store" not in st.session_state:
-        st.session_state.vector_store = get_vectorstore_from_url(website_url)
+        # vector_store = get_vectorstore_from_url(website_url)
+        if website_url is not None and website_url != "":
+            vector_store = get_vectorstore_from_url(website_url)
+        elif pdf_docs is not None and len(pdf_docs) > 0:
+            vector_store = get_vectorstore_from_pdf(pdf_docs)
+        else:
+            vector_store = None
+        st.session_state.vector_store = vector_store
     
-    retriever_chain = get_context_retriever_chain(st.session_state.vector_store)
-    conversation_rag_chain = get_conversational_rag_chain(retriever_chain)
+    # retriever_chain = get_context_retriever_chain(st.session_state.vector_store)
+    # conversation_rag_chain = get_conversational_rag_chain(retriever_chain)
     
     # user input
     user_query = st.chat_input("Type your question here...")
